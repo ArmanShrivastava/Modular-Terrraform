@@ -55,7 +55,11 @@ terraform plan
 
 Review drift carefully. For existing production-like resources, apply only after the plan is clean and expected.
 
-## Adding UAT later
+## Full Commands
+
+See [COMMANDS.md](COMMANDS.md) for copy-paste commands from install through import and plan.
+
+## Adding UAT Later
 
 Copy `envs/qa` to `envs/uat`, update `terraform.tfvars`, and add/import UAT resources. Keep shared module code unchanged unless the platform design changes.
 
