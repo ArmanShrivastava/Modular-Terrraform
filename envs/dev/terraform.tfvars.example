@@ -1,0 +1,10 @@
+subscription_id = "11318a43-071d-4fda-b43a-bd719a191760"
+tenant_id       = "7b137d3d-85e1-4661-adcb-1508632797fb"
+location        = "uksouth"
+
+resource_group_name = "SMS-RG"
+
+log_analytics_workspace_id = "/subscriptions/11318a43-071d-4fda-b43a-bd719a191760/resourceGroups/DefaultResourceGroup-SUK/providers/Microsoft.OperationalInsights/workspaces/DefaultWorkspace-11318a43-071d-4fda-b43a-bd719a191760-SUK"
+
+manage_secret_values = false
+key_vault_secrets    = {}
