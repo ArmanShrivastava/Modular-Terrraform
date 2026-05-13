@@ -1,4 +1,4 @@
-# SMS Terraform
+﻿# SMS Terraform
 
 Terraform structure for managing the existing SMS non-production Azure estate.
 
@@ -6,19 +6,19 @@ The code is split into reusable modules and environment roots:
 
 ```text
 .
-├── envs
-│   ├── dev
-│   └── qa
-├── modules
-│   ├── acr
-│   ├── aks
-│   ├── application-gateway-placeholder
-│   ├── front-door-placeholder
-│   ├── key-vault
-│   ├── network
-│   └── vm-placeholder
-├── docs
-└── scripts
+â”œâ”€â”€ envs
+â”‚   â”œâ”€â”€ dev
+â”‚   â””â”€â”€ qa
+â”œâ”€â”€ modules
+â”‚   â”œâ”€â”€ acr
+â”‚   â”œâ”€â”€ aks
+â”‚   â”œâ”€â”€ application-gateway
+â”‚   â”œâ”€â”€ front-door
+â”‚   â”œâ”€â”€ key-vault
+â”‚   â”œâ”€â”€ network
+â”‚   â””â”€â”€ vm
+â”œâ”€â”€ docs
+â””â”€â”€ scripts
 ```
 
 ## How to use
@@ -67,3 +67,4 @@ Copy `envs/qa` to `envs/uat`, update `terraform.tfvars`, and add/import UAT reso
 
 - Key Vault secret values are intentionally not committed. Set `manage_secret_values = true` and pass secret values securely only when Terraform should own them.
 - Application Gateway, Front Door, and VMs are represented as placeholders with import guidance because portal-exported ARM for those resources is very large and often contains generated/read-only fields. Convert them module-by-module after import planning, so Terraform does not accidentally recreate live traffic resources.
+

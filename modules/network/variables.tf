@@ -32,6 +32,7 @@ variable "subnets" {
     private_endpoint_network_policies = optional(string, "Enabled")
   }))
   description = "Subnets keyed by subnet name."
+  default     = {}
 }
 
 variable "peerings" {

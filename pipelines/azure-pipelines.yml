@@ -1,0 +1,274 @@
+trigger:
+  branches:
+    include:
+    - main
+    - develop
+    - feature/*
+  paths:
+    include:
+    - terraform/**
+    - pipelines/**
+    exclude:
+    - README.md
+
+pr:
+  branches:
+    include:
+    - main
+    - develop
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  terraformVersion: '1.5.0'
+  workingDirectory: '$(System.DefaultWorkingDirectory)'
+
+stages:
+
+# ============================================================================
+# STAGE 1: VALIDATE & LINT
+# ============================================================================
+- stage: Validate
+  displayName: 'Validate & Lint'
+  condition: succeeded()
+  jobs:
+  - job: TerraformValidate
+    displayName: 'Terraform Validation'
+    steps:
+    - task: UseTerraformVersion@0
+      inputs:
+        terraformVersion: $(terraformVersion)
+      displayName: 'Install Terraform'
+
+    - task: TerraformCLI@0
+      inputs:
+        command: 'validate'
+        workingDirectory: '$(workingDirectory)/envs/dev'
+      displayName: 'Validate DEV'
+
+    - task: TerraformCLI@0
+      inputs:
+        command: 'validate'
+        workingDirectory: '$(workingDirectory)/envs/qa'
+      displayName: 'Validate QA'
+
+  - job: FormatCheck
+    displayName: 'Format Check'
+    steps:
+    - task: UseTerraformVersion@0
+      inputs:
+        terraformVersion: $(terraformVersion)
+
+    - script: |
+        cd $(workingDirectory)
+        terraform fmt -check -recursive
+      displayName: 'Check Format'
+      continueOnError: true
+
+  - job: SecurityScan
+    displayName: 'Security Scan'
+    steps:
+    - script: |
+        # Install Checkov
+        pip install checkov
+      displayName: 'Install Checkov'
+
+    - script: |
+        checkov -d $(workingDirectory) \
+          --framework terraform \
+          --check CKV_AZURE_1,CKV_AZURE_2,CKV_AZURE_3 \
+          --quiet
+      displayName: 'Run Security Checks'
+      continueOnError: true
+
+# ============================================================================
+# STAGE 2: PLAN
+# ============================================================================
+- stage: PlanDEV
+  displayName: 'Plan DEV'
+  dependsOn: Validate
+  condition: succeeded()
+  jobs:
+  - job: TerraformPlan
+    displayName: 'Terraform Plan'
+    steps:
+    - task: UseTerraformVersion@0
+      inputs:
+        terraformVersion: $(terraformVersion)
+
+    - task: TerraformCLI@0
+      inputs:
+        command: 'init'
+        workingDirectory: '$(workingDirectory)/envs/dev'
+        backendServiceArm: '$(AzureServiceConnection)'
+        backendAzureRmResourceGroupName: 'terraform-backend'
+        backendAzureRmStorageAccountName: 'smstertfstate'
+        backendAzureRmContainerName: 'tfstate'
+        backendAzureRmKey: 'dev.terraform.tfstate'
+      displayName: 'Terraform Init'
+
+    - task: TerraformCLI@0
+      inputs:
+        command: 'plan'
+        workingDirectory: '$(workingDirectory)/envs/dev'
+        environmentServiceNameAzureRM: '$(AzureServiceConnection)'
+        commandOptions: '-out=tfplan -input=false -lock=true'
+      displayName: 'Terraform Plan'
+    
+    - task: PublishBuildArtifacts@1
+      inputs:
+        pathToPublish: '$(workingDirectory)/envs/dev/tfplan'
+        artifactName: 'tfplan-dev'
+      displayName: 'Publish Plan Artifact'
+
+- stage: PlanQA
+  displayName: 'Plan QA'
+  dependsOn: Validate
+  condition: succeeded()
+  jobs:
+  - job: TerraformPlan
+    displayName: 'Terraform Plan'
+    steps:
+    - task: UseTerraformVersion@0
+      inputs:
+        terraformVersion: $(terraformVersion)
+
+    - task: TerraformCLI@0
+      inputs:
+        command: 'init'
+        workingDirectory: '$(workingDirectory)/envs/qa'
+        backendServiceArm: '$(AzureServiceConnection)'
+        backendAzureRmResourceGroupName: 'terraform-backend'
+        backendAzureRmStorageAccountName: 'smstertfstate'
+        backendAzureRmContainerName: 'tfstate'
+        backendAzureRmKey: 'qa.terraform.tfstate'
+      displayName: 'Terraform Init'
+
+    - task: TerraformCLI@0
+      inputs:
+        command: 'plan'
+        workingDirectory: '$(workingDirectory)/envs/qa'
+        environmentServiceNameAzureRM: '$(AzureServiceConnection)'
+        commandOptions: '-out=tfplan -input=false -lock=true'
+      displayName: 'Terraform Plan'
+
+    - task: PublishBuildArtifacts@1
+      inputs:
+        pathToPublish: '$(workingDirectory)/envs/qa/tfplan'
+        artifactName: 'tfplan-qa'
+      displayName: 'Publish Plan Artifact'
+
+# ============================================================================
+# STAGE 3: APPROVAL
+# ============================================================================
+- stage: ApprovalDEV
+  displayName: 'Approval for DEV Apply'
+  dependsOn: PlanDEV
+  condition: succeeded()
+  jobs:
+  - job: waitForValidation
+    displayName: 'Wait for Approval'
+    pool: server
+    timeoutInMinutes: 1440
+    steps:
+    - task: ManualValidation@0
+      inputs:
+        notifyUsers: '$(ReviewerEmail)'
+        instructions: 'Review Terraform plan and approve to proceed with DEV deployment'
+
+- stage: ApprovalQA
+  displayName: 'Approval for QA Apply'
+  dependsOn: PlanQA
+  condition: succeeded()
+  jobs:
+  - job: waitForValidation
+    displayName: 'Wait for Approval'
+    pool: server
+    timeoutInMinutes: 1440
+    steps:
+    - task: ManualValidation@0
+      inputs:
+        notifyUsers: '$(ReviewerEmail)'
+        instructions: 'Review Terraform plan and approve to proceed with QA deployment'
+
+# ============================================================================
+# STAGE 4: APPLY
+# ============================================================================
+- stage: ApplyDEV
+  displayName: 'Apply DEV'
+  dependsOn: ApprovalDEV
+  condition: succeeded()
+  jobs:
+  - job: TerraformApply
+    displayName: 'Terraform Apply'
+    steps:
+    - task: DownloadBuildArtifacts@0
+      inputs:
+        artifactName: 'tfplan-dev'
+        downloadPath: '$(workingDirectory)/envs/dev'
+      displayName: 'Download Plan Artifact'
+
+    - task: UseTerraformVersion@0
+      inputs:
+        terraformVersion: $(terraformVersion)
+
+    - task: TerraformCLI@0
+      inputs:
+        command: 'apply'
+        workingDirectory: '$(workingDirectory)/envs/dev'
+        environmentServiceNameAzureRM: '$(AzureServiceConnection)'
+        commandOptions: 'tfplan'
+      displayName: 'Terraform Apply'
+
+    - script: |
+        cd $(workingDirectory)/envs/dev
+        terraform state list > state-list.txt
+        terraform show -json > state.json
+      displayName: 'Export State'
+      continueOnError: true
+
+    - task: PublishBuildArtifacts@1
+      inputs:
+        pathToPublish: '$(workingDirectory)/envs/dev'
+        artifactName: 'state-dev'
+      displayName: 'Publish State Artifact'
+
+- stage: ApplyQA
+  displayName: 'Apply QA'
+  dependsOn: ApprovalQA
+  condition: succeeded()
+  jobs:
+  - job: TerraformApply
+    displayName: 'Terraform Apply'
+    steps:
+    - task: DownloadBuildArtifacts@0
+      inputs:
+        artifactName: 'tfplan-qa'
+        downloadPath: '$(workingDirectory)/envs/qa'
+      displayName: 'Download Plan Artifact'
+
+    - task: UseTerraformVersion@0
+      inputs:
+        terraformVersion: $(terraformVersion)
+
+    - task: TerraformCLI@0
+      inputs:
+        command: 'apply'
+        workingDirectory: '$(workingDirectory)/envs/qa'
+        environmentServiceNameAzureRM: '$(AzureServiceConnection)'
+        commandOptions: 'tfplan'
+      displayName: 'Terraform Apply'
+
+    - script: |
+        cd $(workingDirectory)/envs/qa
+        terraform state list > state-list.txt
+        terraform show -json > state.json
+      displayName: 'Export State'
+      continueOnError: true
+
+    - task: PublishBuildArtifacts@1
+      inputs:
+        pathToPublish: '$(workingDirectory)/envs/qa'
+        artifactName: 'state-qa'
+      displayName: 'Publish State Artifact'
