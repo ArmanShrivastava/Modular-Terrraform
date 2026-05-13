@@ -19,13 +19,13 @@ resource "azurerm_key_vault" "this" {
 }
 
 resource "azurerm_key_vault_secret" "this" {
-  for_each = var.manage_secret_values ? var.secrets : {}
+  for_each = toset(var.expected_secret_names)
 
   name         = each.key
-  value        = each.value
+  value        = "placeholder"  # Ignored for imported secrets
   key_vault_id = azurerm_key_vault.this.id
 
   lifecycle {
-    prevent_destroy = true
+    ignore_changes = [value]
   }
 }
