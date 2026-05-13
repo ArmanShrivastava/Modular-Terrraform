@@ -338,8 +338,8 @@ module "application_gateway" {
   public_ip_address_id   = try(var.appgw_public_ip_id, "")
 
   frontend_ports = [
-    { name = "http"; port = 80 },
-    { name = "https"; port = 443 }
+    { name = "http", port = 80 },
+    { name = "https", port = 443 }
   ]
 
   backend_pools = [
