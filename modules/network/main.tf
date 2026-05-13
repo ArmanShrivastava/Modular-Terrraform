@@ -19,65 +19,16 @@ resource "azurerm_virtual_network" "this" {
   }
 }
 
-resource "azurerm_subnet" "appgw_subnet" {
-  name                              = "appgw-subnet"
+resource "azurerm_subnet" "this" {
+  for_each = var.subnets
+
+  name                              = each.key
   resource_group_name               = var.resource_group_name
   virtual_network_name              = azurerm_virtual_network.this.name
-  address_prefixes                  = ["10.0.1.0/24"]
-  service_endpoints                 = []
-  private_endpoint_network_policies = "Enabled"
-
-  lifecycle {
-    prevent_destroy = true
-  }
-}
-
-resource "azurerm_subnet" "jumpbox_subnet" {
-  name                              = "jumpbox-subnet"
-  resource_group_name               = var.resource_group_name
-  virtual_network_name              = azurerm_virtual_network.this.name
-  address_prefixes                  = ["10.0.5.0/26"]
-  service_endpoints                 = []
-  private_endpoint_network_policies = "Enabled"
-
-  lifecycle {
-    prevent_destroy = true
-  }
-}
-
-resource "azurerm_subnet" "aks_subnet" {
-  name                              = "aks-subnet"
-  resource_group_name               = var.resource_group_name
-  virtual_network_name              = azurerm_virtual_network.this.name
-  address_prefixes                  = ["10.0.2.0/23"]
-  service_endpoints                 = ["Microsoft.Sql"]
-  private_endpoint_network_policies = "Enabled"
-
-  lifecycle {
-    prevent_destroy = true
-  }
-}
-
-resource "azurerm_subnet" "private_endpoints_subnet" {
-  name                              = "private-endpoints-subnet"
-  resource_group_name               = var.resource_group_name
-  virtual_network_name              = azurerm_virtual_network.this.name
-  address_prefixes                  = ["10.0.4.0/24"]
-  service_endpoints                 = ["Microsoft.Sql"]
-  private_endpoint_network_policies = "Disabled"
-
-  lifecycle {
-    prevent_destroy = true
-  }
-}
-
-resource "azurerm_subnet" "ado_agents_subnet" {
-  name                              = "ado-agents-subnet"
-  resource_group_name               = var.resource_group_name
-  virtual_network_name              = azurerm_virtual_network.this.name
-  address_prefixes                  = ["10.0.20.0/24"]
-  service_endpoints                 = []
-  private_endpoint_network_policies = "Disabled"
+  address_prefixes                  = each.value.address_prefixes
+  network_security_group_id         = try(each.value.network_security_group_id, null)
+  service_endpoints                 = try(each.value.service_endpoints, [])
+  private_endpoint_network_policies = try(each.value.private_endpoint_network_policies, "Enabled")
 
   lifecycle {
     prevent_destroy = true
@@ -86,8 +37,8 @@ resource "azurerm_subnet" "ado_agents_subnet" {
 
 resource "azurerm_subnet_network_security_group_association" "this" {
   for_each = {
-    for name, subnet in var.subnets : name => subnet
-    if try(subnet.network_security_group_id, null) != null
+    for subnet_key, subnet_config in var.subnets : subnet_key => subnet_config
+    if try(subnet_config.network_security_group_id, null) != null
   }
 
   subnet_id                 = azurerm_subnet.this[each.key].id

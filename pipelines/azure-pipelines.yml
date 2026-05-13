@@ -69,17 +69,39 @@ stages:
   - job: SecurityScan
     displayName: 'Security Scan'
     steps:
+    - task: UseTerraformVersion@0
+      inputs:
+        terraformVersion: $(terraformVersion)
+      displayName: 'Install Terraform'
+
     - script: |
-        # Install Checkov
-        pip install checkov
-      displayName: 'Install Checkov'
+        python3 -m pip install --upgrade pip
+        pip install checkov tfsec
+      displayName: 'Install Security Tools'
 
     - script: |
         checkov -d $(workingDirectory) \
           --framework terraform \
-          --check CKV_AZURE_1,CKV_AZURE_2,CKV_AZURE_3 \
           --quiet
-      displayName: 'Run Security Checks'
+      displayName: 'Run Checkov'
+      continueOnError: true
+
+    - script: |
+        tfsec $(workingDirectory)
+      displayName: 'Run tfsec'
+      continueOnError: true
+
+    - script: |
+        curl -L -o /tmp/tflint.zip https://github.com/terraform-linters/tflint/releases/download/v0.34.1/tflint_linux_amd64.zip
+        unzip -o /tmp/tflint.zip -d /usr/local/bin
+        chmod +x /usr/local/bin/tflint
+      displayName: 'Install tflint'
+
+    - script: |
+        cd $(workingDirectory)
+        tflint --init
+        tflint
+      displayName: 'Run tflint'
       continueOnError: true
 
 # ============================================================================
