@@ -88,6 +88,26 @@ module "network_security_groups" {
         }
       ]
     }
+    "ad-agents-nsg" = {
+      name = "ad-agents-nsg"
+      inbound_rules = []
+    }
+    "AgentMachine-nsg" = {
+      name = "AgentMachine-nsg"
+      inbound_rules = []
+    }
+    "agentvm-nsg" = {
+      name = "agentvm-nsg"
+      inbound_rules = []
+    }
+    "SMS-Non-Prod-1-nsg" = {
+      name = "SMS-Non-Prod-1-nsg"
+      inbound_rules = []
+    }
+    "smsnonprod-vm-nsg" = {
+      name = "smsnonprod-vm-nsg"
+      inbound_rules = []
+    }
   }
 }
 
