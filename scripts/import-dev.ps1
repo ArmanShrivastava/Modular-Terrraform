@@ -84,7 +84,8 @@ $nsgs = @(
 foreach ($nsg in $nsgs) {
     $nsgId = "/subscriptions/$SubscriptionId/resourceGroups/$ResourceGroupName/providers/Microsoft.Network/networkSecurityGroups/$($nsg.name)"
     Write-Info "Importing NSG: $($nsg.name)"
-    terraform import "module.network_security_groups.azurerm_network_security_group.this[\"$($nsg.tfKey)\"]" $nsgId 2>&1 | Out-Null
+    $addr = 'module.network_security_groups.azurerm_network_security_group.this["' + $nsg.tfKey + '"]'
+    terraform import -lock=false $addr $nsgId 2>&1
     if ($LASTEXITCODE -eq 0) {
         Write-Success "Imported: $($nsg.name)"
     } else {
@@ -235,7 +236,7 @@ foreach ($nic in $nics) {
 # ============================================================================
 Write-Section "Import Summary"
 Write-Info "Running terraform plan to validate state..."
-terraform plan -out=import.tfplan 2>&1 | Tee-Object -Variable planOutput | Out-Null
+terraform plan -lock=false -out=import.tfplan 2>&1 | Tee-Object -Variable planOutput | Out-Null
 
 if ($LASTEXITCODE -eq 0) {
     Write-Success "All resources imported successfully"

@@ -35,16 +35,6 @@ resource "azurerm_subnet" "this" {
   }
 }
 
-resource "azurerm_subnet_network_security_group_association" "this" {
-  for_each = {
-    for subnet_key, subnet_config in var.subnets : subnet_key => subnet_config
-    if try(subnet_config.network_security_group_id, null) != null
-  }
-
-  subnet_id                 = azurerm_subnet.this[each.key].id
-  network_security_group_id = each.value.network_security_group_id
-}
-
 resource "azurerm_virtual_network_peering" "this" {
   for_each = var.peerings
 

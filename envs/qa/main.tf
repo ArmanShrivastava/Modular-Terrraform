@@ -95,7 +95,7 @@ module "network_security_groups" {
 module "network" {
   source = "../../modules/network"
 
-  name                    = "sms-net-qa"
+  name                    = "sms-net"
   resource_group_name     = var.resource_group_name
   location                = var.location
   address_space           = ["10.10.0.0/16"]
@@ -194,60 +194,60 @@ module "storage" {
   }
 }
 
-# AKS Cluster
-module "aks" {
-  source = "../../modules/aks"
-
-  name                              = "sms-aks-qa-cluster"
-  resource_group_name               = var.resource_group_name
-  location                          = var.location
-  tenant_id                         = var.tenant_id
-  dns_prefix                        = "sms-aks-qa-cluster-dns"
-  kubernetes_version                = "1.34.6"
-  node_resource_group               = "MC_SMS-RG_sms-aks-qa-cluster_uksouth"
-  sku_tier                          = "Standard"
-  private_cluster_enabled           = true
-  private_dns_zone_id               = "System"
-  azure_policy_enabled              = true
-  oidc_issuer_enabled               = true
-  workload_identity_enabled         = true
-  local_account_disabled            = false
-  service_cidr                      = "10.1.0.0/16"
-  dns_service_ip                    = "10.1.0.10"
-  log_analytics_workspace_id        = var.log_analytics_workspace_id
-  tags                              = local.tags
-
-  default_node_pool = {
-    name            = "agentpool"
-    vm_size         = "Standard_D2as_v5"
-    vnet_subnet_id  = module.network.subnet_ids["aks-subnet"]
-    zones           = ["1", "2", "3"]
-    min_count       = 2
-    max_count       = 5
-    max_pods        = 30
-    os_disk_size_gb = 128
-  }
-
-  user_node_pools = {
-    userpool = {
-      vm_size         = "Standard_D2s_v5"
-      vnet_subnet_id  = module.network.subnet_ids["aks-subnet"]
-      zones           = ["1", "2", "3"]
-      min_count       = 2
-      max_count       = 5
-      max_pods        = 19
-      os_disk_size_gb = 128
-    }
-    uipool = {
-      vm_size         = "Standard_D2s_v5"
-      vnet_subnet_id  = module.network.subnet_ids["aks-subnet"]
-      min_count       = 3
-      max_count       = 5
-      max_pods        = 30
-      os_disk_size_gb = 128
-      node_labels = {
-        tier     = "frontend"
-        workload = "ui"
+# # AKS Cluster
+# module "aks" {
+#   source = "../../modules/aks"
+# 
+#   name                              = "sms-aks-qa-cluster"
+#   resource_group_name               = var.resource_group_name
+#   location                          = var.location
+#   tenant_id                         = var.tenant_id
+#   dns_prefix                        = "sms-aks-qa-cluster-dns"
+#   kubernetes_version                = "1.34.6"
+#   node_resource_group               = "MC_SMS-RG_sms-aks-qa-cluster_uksouth"
+#   sku_tier                          = "Standard"
+#   private_cluster_enabled           = true
+#   private_dns_zone_id               = "System"
+#   azure_policy_enabled              = true
+#   oidc_issuer_enabled               = true
+#   workload_identity_enabled         = true
+#   local_account_disabled            = false
+#   service_cidr                      = "10.1.0.0/16"
+#   dns_service_ip                    = "10.1.0.10"
+#   log_analytics_workspace_id        = var.log_analytics_workspace_id
+#   tags                              = local.tags
+# 
+#   default_node_pool = {
+#     name            = "agentpool"
+#     vm_size         = "Standard_D2as_v5"
+#     vnet_subnet_id  = module.network.subnet_ids["aks-subnet"]
+#     zones           = ["1", "2", "3"]
+#     min_count       = 2
+#     max_count       = 5
+#     max_pods        = 30
+#     os_disk_size_gb = 128
+#   }
+# 
+#   user_node_pools = {
+#     userpool = {
+#       vm_size         = "Standard_D2s_v5"
+#       vnet_subnet_id  = module.network.subnet_ids["aks-subnet"]
+#       zones           = ["1", "2", "3"]
+#       min_count       = 2
+#       max_count       = 5
+#       max_pods        = 19
+#       os_disk_size_gb = 128
+#     }
+#     uipool = {
+#       vm_size         = "Standard_D2s_v5"
+#       vnet_subnet_id  = module.network.subnet_ids["aks-subnet"]
+#       min_count       = 3
+#       max_count       = 5
+#       max_pods        = 30
+#       os_disk_size_gb = 128
+#       node_labels = {
+#         tier     = "frontend"
+#         workload = "ui"
       }
       node_taints = ["workload=ui:NoSchedule"]
     }
